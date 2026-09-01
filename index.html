@@ -5,8 +5,13 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda do Coordenador · SEDUC SP 2026</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
+
     <style>
-        /* ========== IDENTIDADE VISUAL (Calendário Pedagógico) ========== */
+        /* ========== IDENTIDADE VISUAL ========== */
         * {
             margin: 0;
             padding: 0;
@@ -148,18 +153,6 @@
             display: flex;
             align-items: center;
             gap: 10px;
-        }
-
-        .card h3 {
-            font-size: 1.2rem;
-            font-weight: 700;
-            color: #0a2f6c;
-            margin: 1.2rem 0 0.6rem;
-        }
-
-        .card p {
-            color: #1e293b;
-            line-height: 1.6;
         }
 
         .grid-2 {
@@ -420,34 +413,6 @@
             color: #475569;
         }
 
-        .progress-indicator {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            background: rgba(255,255,255,0.08);
-            padding: 0.3rem 1.2rem 0.3rem 1.8rem;
-            border-radius: 60px;
-            color: rgba(255,255,255,0.8);
-            font-size: 0.85rem;
-            font-weight: 500;
-            backdrop-filter: blur(2px);
-        }
-
-        .progress-bar {
-            width: 120px;
-            height: 6px;
-            background: rgba(255,255,255,0.2);
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: #ffec9e;
-            width: 0%;
-            transition: width 0.4s ease;
-        }
-
         .page-footer {
             text-align: center;
             font-size: 0.75rem;
@@ -457,6 +422,20 @@
             font-weight: 400;
             border-top: 1px solid rgba(255,255,255,0.05);
         }
+
+        /* Loader */
+        .loader {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,0.3);
+            border-top: 3px solid #fff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            vertical-align: middle;
+            margin-right: 8px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
         @media (max-width: 960px) {
             .main-container { border-radius: 28px; padding: 14px; }
@@ -489,13 +468,6 @@
             </div>
         </div>
         <span class="title-badge">COORDENADOR</span>
-        <div class="progress-indicator">
-            <span>Progresso</span>
-            <div class="progress-bar">
-                <div class="progress-fill" id="progressFill"></div>
-            </div>
-            <span id="progressText">0%</span>
-        </div>
     </div>
 
     <!-- NAVEGAÇÃO POR ABAS (Filtros) -->
@@ -512,21 +484,29 @@
         <div class="card">
             <h2>✏️ Novo Registro / Edição</h2>
             <form id="agendaForm" autocomplete="off">
+                <!-- Campos Escola e Coordenador -->
                 <div class="grid-2">
-                    <!-- Data -->
+                    <div class="form-group">
+                        <label for="escola">🏫 Escola <span style="color:#b91c1c;">*</span></label>
+                        <input type="text" id="escola" placeholder="Nome da escola" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="coordenador">👤 Coordenador <span style="color:#b91c1c;">*</span></label>
+                        <input type="text" id="coordenador" placeholder="Nome do coordenador" required>
+                    </div>
+                </div>
+
+                <div class="grid-2">
                     <div class="form-group">
                         <label for="data">📅 Data <span style="color:#b91c1c;">*</span></label>
                         <input type="date" id="data" required>
                     </div>
-
-                    <!-- Pauta -->
                     <div class="form-group">
                         <label for="pauta">📌 Pauta / Tema <span style="color:#b91c1c;">*</span></label>
                         <input type="text" id="pauta" placeholder="Ex: Alinhamento do Projeto de Vida" required>
                     </div>
                 </div>
 
-                <!-- Eventos -->
                 <div class="form-group">
                     <label for="eventos">🗓️ Eventos / Datas Importantes</label>
                     <input type="text" id="eventos" placeholder="Ex: Conselho de Classe, Reunião de Pais, Entrega de Notas">
@@ -551,13 +531,11 @@
                     </div>
                 </div>
 
-                <!-- Observação -->
                 <div class="form-group">
                     <label for="observacao">📝 Observações / Encaminhamentos</label>
                     <textarea id="observacao" placeholder="Detalhes importantes, pendências, próximos passos..." rows="3"></textarea>
                 </div>
 
-                <!-- Status e botões -->
                 <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin-top: 8px;">
                     <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; color: #0a2f6c; cursor: pointer;">
                         <input type="checkbox" id="concluido" style="width:20px; height:20px; accent-color:#0a7e3e;">
@@ -581,29 +559,48 @@
                             <th>Data</th>
                             <th>Pauta</th>
                             <th>Eventos</th>
-                            <th>Ações Formativas</th>
+                            <th>Ações</th>
                             <th>Observação</th>
                             <th>Status</th>
                             <th style="min-width:110px;">Ações</th>
                         </tr>
                     </thead>
                     <tbody id="agendaTableBody">
-                        <tr><td colspan="7" class="empty-message">Nenhum registro encontrado. Comece adicionando um!</td></tr>
+                        <tr><td colspan="7" class="empty-message">Carregando dados...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
 
         <div class="page-footer">
-            Agenda do Coordenador Pedagógico · SEDUC SP 2026 · Dados salvos localmente
+            Agenda do Coordenador Pedagógico · SEDUC SP 2026 · Dados salvos no URE-CAIEIRAS
         </div>
     </div>
 </div>
 
 <script>
+    // ==================== CONFIGURAÇÃO DO FIREBASE ====================
+    // Substitua com seus dados do Firebase (modo teste)
+    const firebaseConfig = {
+        apiKey: "SUA_API_KEY",
+        authDomain: "SEU_PROJETO.firebaseapp.com",
+        projectId: "SEU_PROJECT_ID",
+        storageBucket: "SEU_PROJECT_ID.appspot.com",
+        messagingSenderId: "SEU_SENDER_ID",
+        appId: "SEU_APP_ID"
+    };
+
+    // Inicializar Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // ==================== APLICAÇÃO ====================
     document.addEventListener('DOMContentLoaded', () => {
-        // Elementos
+
+        // Elementos do DOM
         const form = document.getElementById('agendaForm');
+        const escolaInput = document.getElementById('escola');
+        const coordenadorInput = document.getElementById('coordenador');
         const dataInput = document.getElementById('data');
         const pautaInput = document.getElementById('pauta');
         const eventosInput = document.getElementById('eventos');
@@ -612,115 +609,79 @@
         const submitBtn = document.getElementById('submitBtn');
         const cancelBtn = document.getElementById('cancelEditBtn');
         const tbody = document.getElementById('agendaTableBody');
-        const progressFill = document.getElementById('progressFill');
-        const progressText = document.getElementById('progressText');
 
         const outraCheck = document.getElementById('outraAcaoCheck');
         const outraInput = document.getElementById('outraAcaoInput');
 
-        // Filtros (abas)
+        // Filtros
         const filterButtons = document.querySelectorAll('.nav-btn[data-filter]');
         let currentFilter = 'all';
 
-        // State
-        let items = [];
-        let editingId = null;
+        // Estado
+        let editingId = null; // ID do documento Firestore
 
-        // Carregar dados do localStorage
-        function loadItems() {
-            const stored = localStorage.getItem('agendaCoordenadorSP');
-            if (stored) {
-                try {
-                    items = JSON.parse(stored);
-                } catch (e) {
-                    items = [];
-                }
-            } else {
-                items = [];
-            }
-            renderItems();
-            updateProgress();
-        }
+        // ========== FUNÇÕES DE CRUD ==========
 
-        function saveItems() {
-            localStorage.setItem('agendaCoordenadorSP', JSON.stringify(items));
-            renderItems();
-            updateProgress();
-        }
-
-        function getSelectedAcoes() {
-            const acoes = [];
-            document.querySelectorAll('#acoesContainer input[type="checkbox"]:checked').forEach(cb => {
-                if (cb.id === 'outraAcaoCheck') {
-                    const val = outraInput.value.trim();
-                    if (val) acoes.push(`Outra: ${val}`);
-                } else {
-                    acoes.push(cb.value);
-                }
-            });
-            return acoes;
-        }
-
-        function resetForm() {
-            form.reset();
-            editingId = null;
-            submitBtn.textContent = '➕ Adicionar / Salvar';
-            cancelBtn.style.display = 'none';
-            outraInput.disabled = true;
-            outraInput.value = '';
-            outraCheck.checked = false;
-            const hoje = new Date().toISOString().split('T')[0];
-            dataInput.value = hoje;
-        }
-
-        function editItem(id) {
-            const item = items.find(i => i.id === id);
-            if (!item) return;
-
-            editingId = id;
-            dataInput.value = item.data;
-            pautaInput.value = item.pauta;
-            eventosInput.value = item.eventos || '';
-            observacaoInput.value = item.observacao || '';
-            concluidoCheck.checked = item.concluido || false;
-
-            document.querySelectorAll('#acoesContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
-            outraInput.value = '';
-            outraInput.disabled = true;
-
-            if (item.acoes && Array.isArray(item.acoes)) {
-                item.acoes.forEach(acao => {
-                    if (acao.startsWith('Outra:')) {
-                        const val = acao.replace('Outra:', '').trim();
-                        outraCheck.checked = true;
-                        outraInput.disabled = false;
-                        outraInput.value = val;
-                    } else {
-                        const cb = document.querySelector(`#acoesContainer input[type="checkbox"][value="${acao}"]`);
-                        if (cb) cb.checked = true;
-                    }
+        // Ler dados em tempo real
+        function listenItems() {
+            db.collection('agendaCoordenadorSP')
+                .orderBy('data', 'desc')
+                .onSnapshot((snapshot) => {
+                    const items = [];
+                    snapshot.forEach(doc => {
+                        items.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderItems(items);
+                }, (error) => {
+                    console.error('Erro ao carregar dados:', error);
+                    tbody.innerHTML = `<tr><td colspan="7" class="empty-message">Erro ao carregar dados: ${error.message}</td></tr>`;
                 });
+        }
+
+        // Salvar (adicionar ou atualizar)
+        function saveItem(data) {
+            const id = editingId;
+            if (id) {
+                // Atualizar
+                db.collection('agendaCoordenadorSP').doc(id).update(data)
+                    .then(() => {
+                        resetForm();
+                    })
+                    .catch(err => alert('Erro ao atualizar: ' + err.message));
+            } else {
+                // Adicionar
+                db.collection('agendaCoordenadorSP').add(data)
+                    .then(() => {
+                        resetForm();
+                    })
+                    .catch(err => alert('Erro ao adicionar: ' + err.message));
             }
-
-            submitBtn.textContent = '💾 Atualizar Registro';
-            cancelBtn.style.display = 'inline-flex';
-            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function cancelEdit() {
-            resetForm();
+        // Excluir
+        function deleteItem(id) {
+            if (confirm('Tem certeza que deseja excluir este registro?')) {
+                db.collection('agendaCoordenadorSP').doc(id).delete()
+                    .catch(err => alert('Erro ao excluir: ' + err.message));
+            }
         }
 
-        function renderItems() {
+        // Alternar status
+        function toggleStatus(id, currentStatus) {
+            db.collection('agendaCoordenadorSP').doc(id).update({
+                concluido: !currentStatus
+            }).catch(err => alert('Erro ao alternar status: ' + err.message));
+        }
+
+        // ========== RENDERIZAÇÃO ==========
+
+        function renderItems(items) {
             let filtered = [...items];
             if (currentFilter === 'pendente') {
                 filtered = filtered.filter(i => !i.concluido);
             } else if (currentFilter === 'concluido') {
                 filtered = filtered.filter(i => i.concluido);
             }
-
-            // Ordenar por data (mais recente primeiro)
-            filtered.sort((a, b) => (a.data < b.data ? 1 : -1));
 
             if (filtered.length === 0) {
                 let msg = 'Nenhum registro encontrado.';
@@ -750,7 +711,7 @@
                         <td>
                             <div class="td-actions">
                                 <button class="btn-edit" title="Editar" data-id="${item.id}">✏️</button>
-                                <button class="btn-toggle" title="Alternar Status" data-id="${item.id}">🔄</button>
+                                <button class="btn-toggle" title="Alternar Status" data-id="${item.id}" data-status="${item.concluido}">🔄</button>
                                 <button class="btn-delete" title="Excluir" data-id="${item.id}">🗑️</button>
                             </div>
                         </td>
@@ -760,37 +721,29 @@
 
             tbody.innerHTML = html;
 
-            // Event listeners para botões
+            // Eventos dos botões
             document.querySelectorAll('.btn-delete').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const id = Number(btn.dataset.id);
-                    if (confirm('Tem certeza que deseja excluir este registro?')) {
-                        deleteItem(id);
-                    }
+                    deleteItem(btn.dataset.id);
                 });
             });
 
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const id = Number(btn.dataset.id);
-                    editItem(id);
+                    const id = btn.dataset.id;
+                    // Buscar o item completo
+                    const item = items.find(i => i.id === id);
+                    if (item) fillFormForEdit(item);
                 });
             });
 
             document.querySelectorAll('.btn-toggle').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    const id = Number(btn.dataset.id);
-                    toggleStatus(id);
+                    const id = btn.dataset.id;
+                    const current = btn.dataset.status === 'true';
+                    toggleStatus(id, current);
                 });
             });
-        }
-
-        function updateProgress() {
-            const total = items.length;
-            const concluidos = items.filter(i => i.concluido).length;
-            const pct = total === 0 ? 0 : Math.round((concluidos / total) * 100);
-            progressFill.style.width = pct + '%';
-            progressText.textContent = pct + '%';
         }
 
         function formatDate(dateStr) {
@@ -802,55 +755,76 @@
             return dateStr;
         }
 
-        function addItem(data, pauta, eventos, acoes, observacao, concluido) {
-            const newItem = {
-                id: Date.now(),
-                data,
-                pauta,
-                eventos: eventos || '',
-                acoes: acoes || [],
-                observacao: observacao || '',
-                concluido: concluido || false,
-            };
-            items.push(newItem);
-            saveItems();
-            resetForm();
+        // ========== FORMULÁRIO ==========
+
+        function getSelectedAcoes() {
+            const acoes = [];
+            document.querySelectorAll('#acoesContainer input[type="checkbox"]:checked').forEach(cb => {
+                if (cb.id === 'outraAcaoCheck') {
+                    const val = outraInput.value.trim();
+                    if (val) acoes.push(`Outra: ${val}`);
+                } else {
+                    acoes.push(cb.value);
+                }
+            });
+            return acoes;
         }
 
-        function updateItem(id, data, pauta, eventos, acoes, observacao, concluido) {
-            const index = items.findIndex(i => i.id === id);
-            if (index !== -1) {
-                items[index] = {
-                    ...items[index],
-                    data,
-                    pauta,
-                    eventos: eventos || '',
-                    acoes: acoes || [],
-                    observacao: observacao || '',
-                    concluido: concluido || false,
-                };
-                saveItems();
-                resetForm();
+        function resetForm() {
+            form.reset();
+            editingId = null;
+            submitBtn.textContent = '➕ Adicionar / Salvar';
+            cancelBtn.style.display = 'none';
+            outraInput.disabled = true;
+            outraInput.value = '';
+            outraCheck.checked = false;
+            // Data padrão hoje
+            const hoje = new Date().toISOString().split('T')[0];
+            dataInput.value = hoje;
+            // Campos escola e coordenador não são limpos (podem ser fixos) - mas reset apaga, então vamos repor se quiser
+            // Deixamos como está.
+        }
+
+        function fillFormForEdit(item) {
+            editingId = item.id;
+            escolaInput.value = item.escola || '';
+            coordenadorInput.value = item.coordenador || '';
+            dataInput.value = item.data;
+            pautaInput.value = item.pauta;
+            eventosInput.value = item.eventos || '';
+            observacaoInput.value = item.observacao || '';
+            concluidoCheck.checked = item.concluido || false;
+
+            // Limpar checkboxes
+            document.querySelectorAll('#acoesContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
+            outraInput.value = '';
+            outraInput.disabled = true;
+
+            if (item.acoes && Array.isArray(item.acoes)) {
+                item.acoes.forEach(acao => {
+                    if (acao.startsWith('Outra:')) {
+                        const val = acao.replace('Outra:', '').trim();
+                        outraCheck.checked = true;
+                        outraInput.disabled = false;
+                        outraInput.value = val;
+                    } else {
+                        const cb = document.querySelector(`#acoesContainer input[type="checkbox"][value="${acao}"]`);
+                        if (cb) cb.checked = true;
+                    }
+                });
             }
+
+            submitBtn.textContent = '💾 Atualizar Registro';
+            cancelBtn.style.display = 'inline-flex';
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function deleteItem(id) {
-            items = items.filter(i => i.id !== id);
-            saveItems();
-        }
-
-        function toggleStatus(id) {
-            const item = items.find(i => i.id === id);
-            if (item) {
-                item.concluido = !item.concluido;
-                saveItems();
-            }
-        }
-
-        // Submissão do form
+        // Submissão
         form.addEventListener('submit', (e) => {
             e.preventDefault();
 
+            const escola = escolaInput.value.trim();
+            const coordenador = coordenadorInput.value.trim();
             const data = dataInput.value;
             const pauta = pautaInput.value.trim();
             const eventos = eventosInput.value.trim();
@@ -858,41 +832,75 @@
             const concluido = concluidoCheck.checked;
             const acoes = getSelectedAcoes();
 
-            if (!data) { alert('Por favor, selecione uma data.'); return; }
-            if (!pauta) { alert('Por favor, preencha a pauta.'); return; }
+            if (!escola) { alert('Por favor, informe o nome da escola.'); return; }
+            if (!coordenador) { alert('Por favor, informe o nome do coordenador.'); return; }
+            if (!data) { alert('Selecione uma data.'); return; }
+            if (!pauta) { alert('Preencha a pauta.'); return; }
 
-            if (editingId !== null) {
-                updateItem(editingId, data, pauta, eventos, acoes, observacao, concluido);
-            } else {
-                addItem(data, pauta, eventos, acoes, observacao, concluido);
-            }
+            const obj = {
+                escola,
+                coordenador,
+                data,
+                pauta,
+                eventos: eventos || '',
+                acoes: acoes || [],
+                observacao: observacao || '',
+                concluido,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            saveItem(obj);
         });
 
-        cancelBtn.addEventListener('click', cancelEdit);
+        cancelBtn.addEventListener('click', resetForm);
 
-        // Habilitar/desabilitar campo "Outra"
+        // "Outra" checkbox
         outraCheck.addEventListener('change', function() {
             outraInput.disabled = !this.checked;
             if (!this.checked) outraInput.value = '';
             if (this.checked) outraInput.focus();
         });
 
-        // Filtros (abas)
+        // Filtros
         filterButtons.forEach(btn => {
             btn.addEventListener('click', function() {
                 filterButtons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 currentFilter = this.dataset.filter;
-                renderItems();
+                // A re-renderização é feita pelo snapshot, mas forçamos a re-aplicação do filtro
+                // O snapshot já tem todos os itens, então precisamos re-renderizar com o filtro atual
+                // Para isso, pegamos os dados atuais do Firestore (não temos uma variável global)
+                // Solução: buscar novamente? Melhor: manter uma lista em memória
+                // Vamos usar um array global: allItems
+                if (window.allItems) {
+                    renderItems(window.allItems);
+                }
             });
         });
+
+        // Inicialização: escuta em tempo real e guarda os itens
+        let allItems = [];
+        db.collection('agendaCoordenadorSP')
+            .orderBy('data', 'desc')
+            .onSnapshot((snapshot) => {
+                allItems = [];
+                snapshot.forEach(doc => {
+                    allItems.push({ id: doc.id, ...doc.data() });
+                });
+                window.allItems = allItems; // para os filtros
+                renderItems(allItems);
+            }, (error) => {
+                console.error('Erro no snapshot:', error);
+                tbody.innerHTML = `<tr><td colspan="7" class="empty-message">Erro ao carregar dados: ${error.message}</td></tr>`;
+            });
 
         // Data padrão
         const hoje = new Date().toISOString().split('T')[0];
         dataInput.value = hoje;
 
-        // Inicializar
-        loadItems();
+        // Reset inicial (para não ter campos vazios)
+        // Não resetamos escola e coordenador para preservar se o usuário já digitou
+        // Mas podemos deixar vazio.
     });
 </script>
 </body>
