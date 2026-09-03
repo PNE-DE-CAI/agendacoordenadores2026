@@ -11,7 +11,6 @@
     <script src="https://www.gstatic.com/firebasejs/10.14.0/firebase-firestore-compat.js"></script>
 
     <style>
-        /* ========== IDENTIDADE VISUAL ========== */
         * {
             margin: 0;
             padding: 0;
@@ -423,7 +422,6 @@
             border-top: 1px solid rgba(255,255,255,0.05);
         }
 
-        /* Loader */
         .loader {
             display: inline-block;
             width: 20px;
@@ -484,7 +482,6 @@
         <div class="card">
             <h2>✏️ Novo Registro / Edição</h2>
             <form id="agendaForm" autocomplete="off">
-                <!-- Campos Escola e Coordenador -->
                 <div class="grid-2">
                     <div class="form-group">
                         <label for="escola">🏫 Escola <span style="color:#b91c1c;">*</span></label>
@@ -512,7 +509,6 @@
                     <input type="text" id="eventos" placeholder="Ex: Conselho de Classe, Reunião de Pais, Entrega de Notas">
                 </div>
 
-                <!-- Ações Formativas (Checkboxes) -->
                 <div class="form-group">
                     <label>🧑‍🏫 Ações Formativas (marque as que se aplicam)</label>
                     <div class="checkbox-group" id="acoesContainer">
@@ -580,14 +576,14 @@
 
 <script>
     // ==================== CONFIGURAÇÃO DO FIREBASE ====================
-    // Substitua com seus dados do Firebase (modo teste)
     const firebaseConfig = {
-        apiKey: "SUA_API_KEY",
-        authDomain: "SEU_PROJETO.firebaseapp.com",
-        projectId: "SEU_PROJECT_ID",
-        storageBucket: "SEU_PROJECT_ID.appspot.com",
-        messagingSenderId: "SEU_SENDER_ID",
-        appId: "SEU_APP_ID"
+        apiKey: "AIzaSyDgBqjOt4v1w8aoFE98pzUjgFocqwFHOds",
+        authDomain: "isaurafaroldinamico.firebaseapp.com",
+        projectId: "isaurafaroldinamico",
+        storageBucket: "isaurafaroldinamico.firebasestorage.app",
+        messagingSenderId: "573527283005",
+        appId: "1:573527283005:web:cba9c9628c0ba06d31a154",
+        measurementId: "G-4Y8V485Y24"
     };
 
     // Inicializar Firebase
@@ -618,38 +614,20 @@
         let currentFilter = 'all';
 
         // Estado
-        let editingId = null; // ID do documento Firestore
+        let editingId = null;
 
         // ========== FUNÇÕES DE CRUD ==========
-
-        // Ler dados em tempo real
-        function listenItems() {
-            db.collection('agendaCoordenadorSP')
-                .orderBy('data', 'desc')
-                .onSnapshot((snapshot) => {
-                    const items = [];
-                    snapshot.forEach(doc => {
-                        items.push({ id: doc.id, ...doc.data() });
-                    });
-                    renderItems(items);
-                }, (error) => {
-                    console.error('Erro ao carregar dados:', error);
-                    tbody.innerHTML = `<tr><td colspan="7" class="empty-message">Erro ao carregar dados: ${error.message}</td></tr>`;
-                });
-        }
 
         // Salvar (adicionar ou atualizar)
         function saveItem(data) {
             const id = editingId;
             if (id) {
-                // Atualizar
                 db.collection('agendaCoordenadorSP').doc(id).update(data)
                     .then(() => {
                         resetForm();
                     })
                     .catch(err => alert('Erro ao atualizar: ' + err.message));
             } else {
-                // Adicionar
                 db.collection('agendaCoordenadorSP').add(data)
                     .then(() => {
                         resetForm();
@@ -731,7 +709,6 @@
             document.querySelectorAll('.btn-edit').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const id = btn.dataset.id;
-                    // Buscar o item completo
                     const item = items.find(i => i.id === id);
                     if (item) fillFormForEdit(item);
                 });
@@ -778,11 +755,8 @@
             outraInput.disabled = true;
             outraInput.value = '';
             outraCheck.checked = false;
-            // Data padrão hoje
             const hoje = new Date().toISOString().split('T')[0];
             dataInput.value = hoje;
-            // Campos escola e coordenador não são limpos (podem ser fixos) - mas reset apaga, então vamos repor se quiser
-            // Deixamos como está.
         }
 
         function fillFormForEdit(item) {
@@ -795,7 +769,6 @@
             observacaoInput.value = item.observacao || '';
             concluidoCheck.checked = item.concluido || false;
 
-            // Limpar checkboxes
             document.querySelectorAll('#acoesContainer input[type="checkbox"]').forEach(cb => cb.checked = false);
             outraInput.value = '';
             outraInput.disabled = true;
@@ -867,18 +840,13 @@
                 filterButtons.forEach(b => b.classList.remove('active'));
                 this.classList.add('active');
                 currentFilter = this.dataset.filter;
-                // A re-renderização é feita pelo snapshot, mas forçamos a re-aplicação do filtro
-                // O snapshot já tem todos os itens, então precisamos re-renderizar com o filtro atual
-                // Para isso, pegamos os dados atuais do Firestore (não temos uma variável global)
-                // Solução: buscar novamente? Melhor: manter uma lista em memória
-                // Vamos usar um array global: allItems
                 if (window.allItems) {
                     renderItems(window.allItems);
                 }
             });
         });
 
-        // Inicialização: escuta em tempo real e guarda os itens
+        // Inicialização: escuta em tempo real
         let allItems = [];
         db.collection('agendaCoordenadorSP')
             .orderBy('data', 'desc')
@@ -887,7 +855,7 @@
                 snapshot.forEach(doc => {
                     allItems.push({ id: doc.id, ...doc.data() });
                 });
-                window.allItems = allItems; // para os filtros
+                window.allItems = allItems;
                 renderItems(allItems);
             }, (error) => {
                 console.error('Erro no snapshot:', error);
@@ -897,10 +865,6 @@
         // Data padrão
         const hoje = new Date().toISOString().split('T')[0];
         dataInput.value = hoje;
-
-        // Reset inicial (para não ter campos vazios)
-        // Não resetamos escola e coordenador para preservar se o usuário já digitou
-        // Mas podemos deixar vazio.
     });
 </script>
 </body>
